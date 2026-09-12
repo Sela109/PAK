@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Hangman - Kuliner Dunia</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-image: url('bg-bunga.jpg'); 
+            background-size: cover; 
+            background-position: center;
+            background-repeat: repeat;
+            color: #333333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .game-container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(5px);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(255, 105, 180, 0.2);
+            border: 2px solid rgba(255, 182, 193, 0.5);
+            max-width: 500px;
+            width: 100%;
+            transition: transform 0.2s ease;
+        }
+        
+        /* Animasi getar saat salah menebak */
+        .shake {
+            animation: shakeEffect 0.4s ease-in-out;
+        }
+        @keyframes shakeEffect {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+
+        h1 {
+            color: #ff4a85;
+            margin-top: 0;
+            font-size: 1.8rem;
+        }
+        .hangman-box {
+            margin: 15px 0;
+        }
+        .hangman-box svg {
+            stroke: #ff4a85;
+            stroke-width: 4;
+            fill: none;
+            stroke-linecap: round;
+        }
+        
+        /* Mengubah display none menjadi opacity untuk mendukung animasi */
+        .figure-part {
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+        .figure-part.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .clue-box {
+            background-color: #fff0f5;
+            border: 1px dashed #ff4a85;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: bold;
+            color: #d13062;
+            margin-bottom: 15px;
+        }
+        .word-display {
+            font-size: 2rem;
+            letter-spacing: 10px;
+            margin: 20px 0;
+            color: #ff4a85;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .keyboard {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            margin-top: 20px;
+        }
+        button {
+            padding: 10px;
+            font-size: 1rem;
+            font-weight: bold;
+            border: none;
+            background-color: #ffb6c1;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        button:hover:not(:disabled) {
+            background-color: #ff4a85;
+            transform: translateY(-2px);
+        }
+        button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+        button:disabled {
+            background-color: #ffe4e1;
+            color: #ccc;
+            cursor: not-allowed;
+        }
+        #lives {
+            color: #ff4a85;
+            font-weight: bold;
+            transition: transform 0.2s ease;
+            display: inline-block;
+        }
+        .reset-btn {
+            margin-top: 20px;
+            background-color: #ff4a85;
+            padding: 10px 20px;
+            width: 100%;
+            border-radius: 6px;
+        }
+        .reset-btn:hover {
+            background-color: #d13062;
+        }
+    </style>
+</head>
+<body>
+
+<div class="game-container" id="gameContainer">
+    <h1>Hangman: Kuliner Dunia 🍕</h1>
+    
+    <!-- Gambar Grafis Hangman -->
+    <div class="hangman-box">
+        <svg height="220" width="200">
+            <line x1="40" y1="200" x2="160" y2="200" />
+            <line x1="80" y1="20" x2="80" y2="200" />
+            <line x1="80" y1="20" x2="140" y2="20" />
+            <line x1="140" y1="20" x2="140" y2="50" />
+
+            <!-- Bagian Tubuh -->
+            <circle cx="140" cy="70" r="15" class="figure-part" /> <!-- Kepala -->
+            <line x1="140" y1="85" x2="140" y2="140" class="figure-part" /> <!-- Badan -->
+            <line x1="140" y1="100" x2="115" y2="85" class="figure-part" /> <!-- Tangan Kiri -->
+            <line x1="140" y1="100" x2="165" y2="85" class="figure-part" /> <!-- Tangan Kanan -->
+            <line x1="140" y1="140" x2="115" y2="175" class="figure-part" /> <!-- Kaki Kiri -->
+            <line x1="140" y1="140" x2="165" y2="175" class="figure-part" /> <!-- Kaki Kanan -->
+        </svg>
+    </div>
+
+    <!-- Tampilan Petunjuk Negara Asal Makanan -->
+    <div class="clue-box" id="clueBox">Petunjuk: Negara Asal</div>
+
+    <div class="word-display" id="wordDisplay">_ _ _ _</div>
+    <p>Sisa Kesempatan: <span id="lives">6</span></p>
+
+    <div class="keyboard" id="keyboard"></div>
+    <button class="reset-btn" id="resetBtn">Makanan Lainnya 🔄</button>
+</div>
+
+<script>
+    const databaseKuliner = [
+        { nama: "RENDANG", asal: "Indonesia 🇮🇩" },
+        { nama: "SUSHI", asal: "Jepang 🇯🇵" },
+        { nama: "PIZZA", asal: "Italia 🇮🇹" },
+        { nama: "BURGER", asal: "Amerika Serikat 🇺🇸" },
+        { nama: "TACO", asal: "Meksiko 🇲🇽" },
+        { nama: "KIMCHI", asal: "Korea Selatan 🇰🇷" },
+        { nama: "CROISSANT", asal: "Prancis 🇫🇷" },
+        { nama: "KEBAB", asal: "Turki 🇹🇷" },
+        { nama: "DIMSUM", asal: "Tiongkok 🇨🇳" },
+        { nama: "LASAGNA", asal: "Italia 🇮🇹" }
+    ];
+
+    let targetWord = "";
+    let guessedLetters = [];
+    let lives = 6;
+
+    const gameContainer = document.getElementById("gameContainer");
+    const wordDisplay = document.getElementById("wordDisplay");
+    const livesDisplay = document.getElementById("lives");
+    const clueBox = document.getElementById("clueBox");
+    const keyboard = document.getElementById("keyboard");
+    const resetBtn = document.getElementById("resetBtn");
+    const figureParts = document.querySelectorAll(".figure-part");
+
+    function initGame() {
+        lives = 6;
+        guessedLetters = [];
+        
+        const dataAcak = databaseKuliner[Math.floor(Math.random() * databaseKuliner.length)];
+        targetWord = dataAcak.nama;
+        
+        clueBox.innerText = `Asal Makanan: ${dataAcak.asal}`;
+        
+        // Reset kelas animasi bagian hangman
+        figureParts.forEach(part => part.classList.remove("show"));
+        keyboard.innerHTML = "";
+        
+        const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        for (let letter of alphabet) {
+            const btn = document.createElement("button");
+            btn.innerText = letter;
+            btn.addEventListener("click", () => {
+                btn.disabled = true;
+                if (targetWord.includes(letter)) {
+                    guessedLetters.push(letter);
+                } else {
+                    lives--;
+                    const partIndex = 6 - lives - 1;
+                    if (figureParts[partIndex]) {
+                        // Memunculkan bagian hangman dengan kelas animasi CSS
+                        figureParts[partIndex].classList.add("show");
+                    }
+                    // Efek getar kotak game saat tebakan salah
+                    gameContainer.classList.add("shake");
+                    setTimeout(() => gameContainer.classList.remove("shake"), 400);
+                }
+                updateDisplay();
+            });
+            keyboard.appendChild(btn);
+        }
+        updateDisplay();
+    }
+
+    function updateDisplay() {
+        let display = "";
+        for (let char of targetWord) {
+            if (guessedLetters.includes(char)) {
+                display += char + " ";
+            } else {
+                display += "_ ";
+            }
+        }
+        wordDisplay.innerText = display.trim();
+        
+        // Animasi pop kecil pada angka sisa kesempatan saat berkurang
+        livesDisplay.style.transform = "scale(1.3)";
+        setTimeout(() => livesDisplay.style.transform = "scale(1)", 200);
+        livesDisplay.innerText = lives;
+
+        if (!wordDisplay.innerText.includes("_")) {
+            setTimeout(() => alert(`Hebat! Jawabannya benar: ${targetWord} 🎉`), 100);
+            disableAllButtons();
+        }
+        
+        if (lives <= 0) {
+            setTimeout(() => alert(`Game Over! Makanan yang dimaksud adalah: ${targetWord} 😢`), 100);
+            disableAllButtons();
+        }
+    }
+
+    function disableAllButtons() {
+        const buttons = keyboard.querySelectorAll("button");
+        buttons.forEach(btn => btn.disabled = true);
+    }
+
+    resetBtn.addEventListener("click", initGame);
+    initGame();
+</script>
+
+</body>
+</html>
